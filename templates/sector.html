@@ -119,6 +119,7 @@
                         ctx.setLineDash([]);
                         ctx.lineDashOffset = 0;
                     }
+                    break;
                 }
             }
         }
@@ -314,6 +315,8 @@
                     $("#planetinfo").html(description);
                 } else {
                     $("#planetname").text("No System Selected");
+                    $('#planetinfo').text();
+                    selected = undefined;
                 }
             });
         }
