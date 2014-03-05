@@ -77,13 +77,84 @@
         return Math.sqrt(Math.pow(start[0]-end[0], 2)+Math.pow(start[1]-end[1], 2));
     }
 
+    function draw_map() {
+        for (var site in diagram.cells) {
+            var cell = diagram.cells[site];
+            var halfedges = cell.halfedges,
+                    nHalfedges = halfedges.length;
+            if (nHalfedges > 2) {
+                var v = halfedges[0].getStartpoint();
+                ctx.beginPath();
+                ctx.moveTo(v.x, v.y);
+                for (var iHalfedge = 0; iHalfedge < nHalfedges; iHalfedge++) {
+                    v = halfedges[iHalfedge].getEndpoint();
+                    ctx.lineTo(v.x, v.y);
+                }
+                ctx.fillStyle = empires[cell.site.empire].background_colour;
+                ctx.fill();
+                ctx.strokeStyle = empires[cell.site.empire].border_colour;
+                ctx.strokeStyle = empires[cell.site.empire].border_colour;
+                ctx.stroke();
+            }
+        }
+
+        if (selected) {
+            for (var site in diagram.cells) {
+                var cell = diagram.cells[site];
+                if (cell.site == selected && (+new Date) % 1000 > 500) {
+                    var halfedges = cell.halfedges,
+                            nHalfedges = halfedges.length;
+                    if (nHalfedges > 2) {
+                        var v = halfedges[0].getStartpoint();
+                        ctx.beginPath();
+                        ctx.moveTo(v.x, v.y);
+                        for (var iHalfedge = 0; iHalfedge < nHalfedges; iHalfedge++) {
+                            v = halfedges[iHalfedge].getEndpoint();
+                            ctx.lineTo(v.x, v.y);
+                        }
+                        ctx.strokeStyle = "white";
+                        ctx.stroke();
+                    }
+                }
+            }
+        }
+
+        ctx.strokeStyle = "#404040";
+        ctx.setLineDash([2, 4]);
+        ctx.beginPath();
+        for (star in stars) {
+            var start = stars[star];
+            for (var route in start.routes) {
+                route = start.routes[route];
+                var destination = stars[route];
+                ctx.moveTo(start.x, start.y);
+                ctx.lineTo(destination.x, destination.y);
+            }
+        }
+        ctx.stroke();
+        ctx.setLineDash([]);
+        for (star in stars) {
+            star = stars[star];
+            var s = star_sizes[star.class.charAt(0)],
+                    s2 = s / 2;
+            if (star.name == empires[star.empire].seat) {
+                ctx.fillStyle = empires[star.empire].colour;
+                ctx.fillRect(star.x - s2 - 4.5, star.y - s2 - 4.5, s + 9, s + 9);
+            }
+            ctx.fillStyle = "black";
+            ctx.fillRect(star.x - s2 - 1, star.y - s2 - 1, s + 2, s + 2);
+            ctx.fillStyle = star_colours[star.class.charAt(0)];
+            ctx.fillRect(star.x - s2, star.y - s2, s, s);
+        }
+    }
+
     var system,
         stars = {},
         empires = {},
         sector = document.getElementById("sector"),
         ctx = sector.getContext("2d"),
         voronoi = new Voronoi(),
-        diagram, treemap;
+        diagram, treemap, selected;
 
     $.ajax({
         dataType: "json",
@@ -151,12 +222,14 @@
                 var empire = data.empires[i];
                 empires[empire.name] = empire;
                 empire.colour = "hsl(" + fmod(i * 0.618033988749895, 1.0)*360 + ", 50%, 40%)";
-                empire.background_colour = "hsl(" + fmod(i * 0.618033988749895, 1.0)*360 + ", 50%, " + Math.sqrt(1.0 - fmod(i * 0.618033988749895, 0.5))*5 + "%)";
+                empire.background_colour = "hsl(" + fmod(i * 0.618033988749895, 1.0)*360 + ", 50%, " + Math.sqrt(1.0 - fmod(i * 0.618033988749895, 0.5))*10 + "%)";
+                empire.border_colour = "hsl(" + fmod(i * 0.618033988749895, 1.0)*360 + ", 50%, " + Math.sqrt(1.0 - fmod(i * 0.618033988749895, 0.5))*5 + "%)";
             }
             empires["Independent"] = {
                 name: "Independent",
                 colour: "black",
-                background_colour: "black"
+                background_colour: "black",
+                border_colour: "#0D0D0D"
             };
 
             for (star in data.stars) {
@@ -168,58 +241,19 @@
 
             diagram = voronoi.compute(data.stars, {xl:0,xr:ctx.canvas.width,yt:0,yb:ctx.canvas.height});
             treemap = buildTreemap(diagram);
-            for (var site in diagram.cells) {
-                var cell = diagram.cells[site];
-                ctx.beginPath();
-                var halfedges = cell.halfedges,
-                nHalfedges = halfedges.length;
-                if (nHalfedges > 2) {
-                    var v = halfedges[0].getStartpoint();
-                    ctx.beginPath();
-                    ctx.moveTo(v.x,v.y);
-                    for (var iHalfedge=0; iHalfedge<nHalfedges; iHalfedge++) {
-                        v = halfedges[iHalfedge].getEndpoint();
-                        ctx.lineTo(v.x,v.y);
-                    }
-                    ctx.fillStyle = empires[cell.site.empire].background_colour;
-                    ctx.strokeStyle = empires[cell.site.empire].background_colour;
-                    ctx.fill();
-                    ctx.stroke();
-                }
-            }
 
-            ctx.strokeStyle = "#404040";
-            ctx.setLineDash([2,4]);
-            ctx.beginPath();
-            for (star in stars) {
-                var start = stars[star];
-                for (var route in start.routes) {
-                    route = start.routes[route];
-                    var destination = stars[route];
-                    ctx.moveTo(start.x, start.y);
-                    ctx.lineTo(destination.x, destination.y);
-                }
-            }
-            ctx.stroke();
-            for (star in stars) {
-                star = stars[star];
-                var s = star_sizes[star.class.charAt(0)],
-                    s2 = s/2;
-                if (star.name == empires[star.empire].seat) {
-                    ctx.fillStyle = empires[star.empire].colour;
-                    ctx.fillRect(star.x-s2-4.5, star.y-s2-4.5, s+9, s+9);
-                }
-                ctx.fillStyle = "black";
-                ctx.fillRect(star.x-s2-1, star.y-s2-1, s+2, s+2);
-                ctx.fillStyle = star_colours[star.class.charAt(0)];
-                ctx.fillRect(star.x-s2, star.y-s2, s, s);
-            }
+            var draw_loop = function () {
+                draw_map();
+                requestAnimationFrame(draw_loop);
+            };
+            draw_loop();
 
             $("#sector").mousedown(function (event) {
                 var x = event.offsetX,
                     y = event.offsetY,
                     system = cell_under(x, y, treemap);
                 if (system) {
+                    selected = system;
                     var first;
                     $("#planetname").text(system.name + " (" + system.empire + ")");
                     $('#planetname').css("color", empires[system.empire].colour);
@@ -277,8 +311,6 @@
                 } else {
                     $("#planetname").text("No System Selected");
                 }
-
-                console.log(system);
             });
         }
     });
