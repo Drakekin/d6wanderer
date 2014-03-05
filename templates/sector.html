@@ -101,7 +101,7 @@
         if (selected) {
             for (var site in diagram.cells) {
                 var cell = diagram.cells[site];
-                if (cell.site == selected && (+new Date) % 1000 > 500) {
+                if (cell.site == selected) {
                     var halfedges = cell.halfedges,
                             nHalfedges = halfedges.length;
                     if (nHalfedges > 2) {
@@ -112,8 +112,12 @@
                             v = halfedges[iHalfedge].getEndpoint();
                             ctx.lineTo(v.x, v.y);
                         }
+                        ctx.setLineDash([2, 4]);
+                        ctx.lineDashOffset = ((+new Date) / 100) % 6;
                         ctx.strokeStyle = "white";
                         ctx.stroke();
+                        ctx.setLineDash([]);
+                        ctx.lineDashOffset = 0;
                     }
                 }
             }
