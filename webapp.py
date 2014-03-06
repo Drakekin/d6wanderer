@@ -24,7 +24,7 @@ def json_sector(seed=None):
 def show_sector(seed=None):
     if not seed:
         seed = "".join([
-            choice("SRCG"), choice("0123456789"), choice("ABCDEFGHJKLMNPQRSTUWXYZ"), "-",
+            choice("ABCDEFGHIJKLMNOPQRSTUVWXYZ"), choice("0123456789"), choice("ABCDEFGHJKLMNPQRSTUWXYZ"), "-",
             choice(SEED_LETTERS), choice(SEED_LETTERS),
             choice(SEED_LETTERS), choice(SEED_LETTERS)
         ])
