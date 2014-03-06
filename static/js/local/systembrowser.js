@@ -283,7 +283,7 @@ var system,
 
 $.ajax({
     dataType: "json",
-    url: "/json/sector/{{ seed }}.json",
+    url: "/json/sector/" + seed + ".json",
     success: function (data, status, xhr) {
         sector.width = sector.height = canvas_size;
         ctx.fillStyle = "black";
