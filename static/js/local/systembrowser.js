@@ -273,13 +273,16 @@ function draw_map() {
     ctx.restore();
 }
 
-var system,
-    stars = {},
+var stars = {},
     empires = {},
     sector = document.getElementById("sector"),
     ctx = sector.getContext("2d"),
     voronoi = new Voronoi(),
     diagram, treemap, selected;
+
+if (!ctx.setLineDash) {
+    ctx.setLineDash = function () {}
+}
 
 $.ajax({
     dataType: "json",
