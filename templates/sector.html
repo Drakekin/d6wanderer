@@ -8,9 +8,11 @@
 </head>
 <body>
 <p id="seedinfo">The seed for this sector is <a href="/sector/{{ seed }}"><strong>{{ seed }}</strong></a>. <a href="/sector">Generate a new random sector.</a></p>
-<canvas id="sector" style="float: left;"></canvas>
+<canvas id="sector" style="float: left;">
+    This tool requires a HTML5 compatable browser.
+</canvas>
 <div id="infopane" style="max-height: 600px; overflow-y: auto; padding-left: 10px;">
-    <h2 id="planetname" style="margin-top: 0">No System Selected</h2>
+    <h2 id="planetname" style="margin-top: 0">Loading sector {{ seed }}</h2>
     <p id="planetinfo"></p>
 </div>
 <script>

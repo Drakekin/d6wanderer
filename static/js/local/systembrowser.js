@@ -132,6 +132,32 @@ function distance(start, end) {
     return Math.sqrt(Math.pow(start[0]-end[0], 2)+Math.pow(start[1]-end[1], 2));
 }
 
+Object.size = function(obj) {
+    var size = 0, key;
+    for (key in obj) {
+        if (obj.hasOwnProperty(key)) size++;
+    }
+    return size;
+};
+
+function unselect() {
+    $("#planetname").text("No System Selected");
+    $('#planetname').css("color", "inherit");
+    var sector_info = "Click a star to select that system.<br><br>";
+    sector_info += "This sector contains " + stats.systems + " systems and " + stats.planets + " planets. ";
+    sector_info += "The average tech level in this sector is " + stats.avg_tech_level + " (" + tech_levels[stats.avg_tech_level] + "). ";
+    sector_info += "There are " + Object.size(stats.empires) + " empires in this sector. ";
+    sector_info += "There are also " + stats.independent_systems + " independent systems with " + stats.independent_planets + " planets.<br><br>";
+    for (var empire in stats.empires) {
+        sector_info += "<strong style='color: " + empires[empire].colour + ";'>" + empire + "</strong><br>";
+        empire = stats.empires[empire];
+        sector_info += empire.systems + " systems, " + empire.planets + " planets.<br>";
+        sector_info += "Average tech level: " + empire.avg_tech_level + " (" + tech_levels[empire.avg_tech_level] + ").<br><br>";
+    }
+    $('#planetinfo').html(sector_info);
+    selected = undefined;
+}
+
 function click_handler(event) {
     var ratio = canvas_size / 600;
     var x = event.offsetX / ratio,
@@ -142,7 +168,7 @@ function click_handler(event) {
         var first;
         $("#planetname").text(system.name + " (" + system.empire + ")");
         $('#planetname').css("color", empires[system.empire].colour);
-        var description = "";
+        var description = "<a href='javascript:unselect()'>Back to sector view</a><br><br>";
         if (system.name == empires[system.empire].seat)
             description += "<strong>Seat of the " + system.empire + "</strong><br>";
         description += "Class " + system.class + "<br>";
@@ -194,9 +220,7 @@ function click_handler(event) {
         }
         $("#planetinfo").html(description);
     } else {
-        $("#planetname").text("No System Selected");
-        $('#planetinfo').text();
-        selected = undefined;
+        unselect();
     }
 }
 
@@ -303,22 +327,25 @@ var stars = {},
     sector = document.getElementById("sector"),
     ctx = sector.getContext("2d"),
     voronoi = new Voronoi(),
-    diagram, treemap, selected;
+    diagram, treemap, selected,
+    stats;
 
 if (!ctx.setLineDash) {
     ctx.setLineDash = function () {}
 }
 
+var system_data;
+
 $.ajax({
     dataType: "json",
     url: "/json/sector/" + seed + ".json",
     success: function (data, status, xhr) {
+        stats = data.stats;
         sector.width = sector.height = canvas_size;
         ctx.fillStyle = "black";
         ctx.fillRect(0,0,canvas_size,canvas_size);
 
         var star;
-
 
         for (var i in data.empires) {
             var empire = data.empires[i];
@@ -351,5 +378,6 @@ $.ajax({
         draw_loop();
 
         $("#sector").mousedown(click_handler);
+        unselect();
     }
 });

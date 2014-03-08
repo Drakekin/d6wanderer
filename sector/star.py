@@ -1,6 +1,19 @@
 from sector.planet import Planet
 
 
+def bucket(l, v):
+    for n, b in enumerate(l):
+        if v > b:
+            return n
+    return n + 1
+
+
+def halve(n, i=1.0):
+    for _ in range(n):
+        i /= 2
+        yield i
+
+
 class Star(object):
     stellar_class_table = [
         ("O", .0000003),
@@ -35,9 +48,11 @@ class Star(object):
         self.gas_giants = self.rng.randint(0, 5)
 
         self.inhabited_bodies = []
-        while True:
-            if self.rng.choice((True, False)):
-                break
+
+        chance = list(halve(10))
+        planets = bucket(chance, rng.random()) + 1
+
+        for _ in range(planets):
             self.inhabited_bodies.append(Planet(self))
         self.routes = set()
         self.empire = None

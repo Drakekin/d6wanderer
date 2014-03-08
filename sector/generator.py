@@ -25,15 +25,29 @@ def count_affiliated(stars):
     return len([s for s in stars if s.empire is None])
 
 
+def range2d(start, end):
+    sx, sy = start
+    ex, ey = end
+    dx = ex - sx + 1
+    dy = ey - sy + 1
+
+    for y in range(dy):
+        for x in range(dx):
+            yield (sx + x, sy + y)
+
+
 def generate_systems(rng):
     stars = {}
     with open("starnames.csv") as star_name_file:
         star_names = list(set([l.strip() for l in star_name_file]))
         rng.shuffle(star_names)
-    for _ in range(rng.randint(100, 150)):
-        location = None
-        while location is None or location in stars:
-            location = (rng.randint(-10, 10), rng.randint(-10, 10))
+    # for _ in range(rng.randint(100, 150)):
+    #     location = None
+    #     while location is None or location in stars:
+    #         location = (rng.randint(-10, 10), rng.randint(-10, 10))
+    for location in range2d((-10, -10), (10, 10)):
+        if rng.random() > (1.0/3.0):
+            continue  # One third chance of a notable star
         name = star_names.pop()
         stars[location] = Star(rng, name, location)
     return stars
@@ -71,7 +85,12 @@ def connect_systems(rng, stars):
                 if destination not in visited_systems:
                     plausible_routes.add((system, destination))
 
-        routes.add(sorted(list(plausible_routes), key=lambda (s, e): route_length(s, e), reverse=True).pop())
+        sorted_routes = sorted(list(plausible_routes), key=lambda (s, e): route_length(s, e), reverse=True)
+
+        routes.add(sorted_routes.pop())
+
+        for _ in range(rng.randint(min(1, len(sorted_routes)), max(min(1, len(sorted_routes)), len(sorted_routes) / 2))):
+            routes.add(sorted_routes.pop())
         visited_systems = systems_visited(routes)
 
     for start, end in routes:
@@ -123,13 +142,50 @@ def generate_empires(rng, stars):
     return empires
 
 
+def analyse(stars, empires):
+    independent_stars = [s for s in stars if s.empire is None]
+    stats = {"population": sum(sum(p.population for p in s.inhabited_bodies) for s in stars), "systems": len(stars),
+             "planets": sum(len(s.inhabited_bodies) for s in stars), "independent_systems": len(independent_stars),
+             "independent_planets": sum(len(s.inhabited_bodies) for s in independent_stars)}
+
+    tech_levels = []
+    for star in stars:
+        tech_levels += [p.tech_level for p in star.inhabited_bodies]
+    tech_levels = sorted(tech_levels)
+    if len(tech_levels) % 2:
+        stats["avg_tech_level"] = (tech_levels[len(tech_levels)/2] + tech_levels[len(tech_levels)/2 - 1])/2
+    else:
+        stats["avg_tech_level"] = tech_levels[len(tech_levels)/2]
+
+    empire_stats = {}
+    for empire in empires:
+        e_stats = {"population": sum(sum(p.population for p in s.inhabited_bodies) for s in empire.stars),
+                   "systems": len(empire.stars), "planets": sum(len(s.inhabited_bodies) for s in empire.stars)}
+
+        tech_levels = []
+        for star in empire.stars:
+            tech_levels += [p.tech_level for p in star.inhabited_bodies]
+        tech_levels = sorted(tech_levels)
+        if len(tech_levels) % 2:
+            e_stats["avg_tech_level"] = (tech_levels[len(tech_levels)/2] + tech_levels[len(tech_levels)/2 - 1])/2
+        else:
+            e_stats["avg_tech_level"] = tech_levels[len(tech_levels)/2]
+
+        empire_stats[empire.name] = e_stats
+
+    stats["empires"] = empire_stats
+
+    return stats
+
+
 def generate_sector(gen_seed):
     rng = Random(gen_seed.lower())
     stars = generate_systems(rng)
     connect_systems(rng, stars)
     empires = generate_empires(rng, stars)
+    analysis = analyse(stars.values(), empires)
 
-    return stars.values(), empires
+    return stars.values(), empires, analysis
 
 
 if __name__ == "__main__":

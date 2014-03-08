@@ -12,9 +12,9 @@ app = Flask(__name__)
 @app.route("/json/sector.json")
 @app.route("/json/sector/<seed>.json")
 def json_sector(seed=None):
-    stars, empires = generate_sector(seed)
+    stars, empires, analysis = generate_sector(seed)
     return Response(
-        response=dumps({"stars": stars, "empires": empires}, cls=ObjectJSONEncoder),
+        response=dumps({"stars": stars, "empires": empires, "stats": analysis}, cls=ObjectJSONEncoder),
         status=200,
         mimetype="application/json"
     )
