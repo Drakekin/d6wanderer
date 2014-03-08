@@ -1,8 +1,10 @@
+# coding=utf-8
 from flask import Flask, Response, render_template
 from json import dumps
+from character.generator import Character, DRAFT
 from util.custom_json_encoder import ObjectJSONEncoder
 from sector.generator import generate_sector
-from random import choice
+from random import choice, Random
 
 SEED_LETTERS = "012346789ABCDEFGHJKLMNPQRSTUWXYZ"
 
@@ -19,6 +21,18 @@ def json_sector(seed=None):
         mimetype="application/json"
     )
 
+
+@app.route("/json/character.json")
+@app.route("/json/character/<name>.json")
+def json_character(name="Jon Smith"):
+    rng = Random(name)
+    character = Character(rng, name, rng.choice(DRAFT))
+    return Response(
+        response=dumps(character, cls=ObjectJSONEncoder),
+        status=200,
+        mimetype="application/json"
+    )
+
 @app.route('/sector')
 @app.route('/sector/<seed>')
 def show_sector(seed=None):
@@ -29,6 +43,12 @@ def show_sector(seed=None):
             choice(SEED_LETTERS), choice(SEED_LETTERS)
         ])
     return render_template("sector.html", seed=seed)
+
+@app.route('/character')
+@app.route('/character/<name>')
+def show_character(name="John Smith"):
+    rng = Random(name)
+    return render_template("character.html", name=name, character=Character(rng, name, rng.choice(DRAFT)).html())
 
 
 if __name__ == "__main__":

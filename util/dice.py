@@ -1,7 +1,6 @@
 import random
 
 
-# def roll(num, modifier, rng):
 def roll(num, modifier=0, rng=random):
     return sum(rng.randint(1, 6) for _ in xrange(num)) + modifier
 

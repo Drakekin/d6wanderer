@@ -1,6 +1,5 @@
 # coding=utf-8
 from collections import defaultdict, Counter
-from random import choice
 from util.dice import roll, test
 from character.professions import Profession
 
@@ -208,7 +207,9 @@ DRAFT = [
 
 
 class Character(object):
-    def __init__(self, name, profession, death=False):
+    def __init__(self, rng, name, profession, death=False):
+        self.rng = rng
+
         self._name = name
         self.age = 18
         self.terms = 0
@@ -219,27 +220,27 @@ class Character(object):
         self.commissioned = False
         self.claimed_autoskills = []
 
-        self.strength = roll(2)
-        self.dexterity = roll(2)
-        self.endurance = roll(2)
-        self.intelligence = roll(2)
-        self.education = roll(2)
-        self.social = roll(2)
+        self.strength = roll(2, rng=self.rng)
+        self.dexterity = roll(2, rng=self.rng)
+        self.endurance = roll(2, rng=self.rng)
+        self.intelligence = roll(2, rng=self.rng)
+        self.education = roll(2, rng=self.rng)
+        self.social = roll(2, rng=self.rng)
 
         self.skills = defaultdict(int)
         self._rank = 0
 
-        if profession.test_enlistment(self):
+        if profession.test_enlistment(self, self.rng):
             self.profession = profession
             self.drafted = False
         else:
-            self.profession = choice(DRAFT)
+            self.profession = self.rng.choice(DRAFT)
             self.drafted = True
 
         terms = 7
 
         while True:
-            survival = self.profession.test_survival(self)
+            survival = self.profession.test_survival(self, rng)
 
             if not survival:
                 if death:
@@ -268,17 +269,17 @@ class Character(object):
 
             if not self.drafted:
                 if not self.commissioned:
-                    if self.profession.test_commission(self):
+                    if self.profession.test_commission(self, rng):
                         self.commissioned = True
                         skills += 1
                 else:
-                    if self.profession.test_promotion(self) and self._rank + 2 < len(self.profession.ranks):
+                    if self.profession.test_promotion(self, rng) and self._rank + 2 < len(self.profession.ranks):
                         self._rank += 1
                         skills += 1
 
             self.drafted = False
             for _ in range(skills*2):
-                kind, skill = choice(choice(self.profession.skills))
+                kind, skill = self.rng.choice(self.rng.choice(self.profession.skills))
                 if kind == CHARACTERISTIC:
                     self.set_characteristic(skill, 1)
                 elif kind == SKILL:
@@ -287,7 +288,7 @@ class Character(object):
             self.terms += 1
             terms -= 1
 
-            if not self.profession.test_reenlist(self, terms > 0):
+            if not self.profession.test_reenlist(self, rng, terms > 0):
                 break
 
         mustering_benefits = self.terms
@@ -344,18 +345,18 @@ class Character(object):
         money_rolls = 3
 
         for _ in range(mustering_benefits):
-            if money_rolls and choice((True, False)):
+            if money_rolls and self.rng.choice((True, False)):
                 money_rolls -= 1
-                self.balance += choice(cash_table[roll(1, 0 if self.skills["Gambling"] else -1)])
+                self.balance += self.rng.choice(cash_table[roll(1, 0 if self.skills["Gambling"] else -1, rng=self.rng)])
             benefit_row_options = range(6) + ([n+1 for n in range(6)] if self._rank in (4, 5) else [])
-            kind, benefit = choice(benfits_table[choice(benefit_row_options)])
+            kind, benefit = self.rng.choice(benfits_table[self.rng.choice(benefit_row_options)])
             if kind == CHARACTERISTIC:
                 characteristic, value = benefit
                 self.set_characteristic(characteristic, value)
             elif kind == BENEFIT:
                 thing = benefit
                 while thing == "Traveller's Aid Society Membership" and thing in self.equipment:
-                    kind, thing = choice(benfits_table[4])
+                    kind, thing = self.rng.choice(benfits_table[4])
                 if thing == "Blade" and thing in self.equipment:
                     self.skills["Blade Combat"] += 1
                     continue
@@ -403,27 +404,27 @@ class Character(object):
     def become_older(self, years):
         if self.age + years >= 74 or self.age >= 34 and (self.age + years % 4 == 0 or self.age % 4 >= self.age + years % 4):
             if self.age < 50:
-                if test(roll(2), +8):
+                if test(roll(2, rng=self.rng), +8):
                     self.strength -= 1
-                if test(roll(2), +7):
+                if test(roll(2, rng=self.rng), +7):
                     self.dexterity -= 1
-                if test(roll(2), +8):
+                if test(roll(2, rng=self.rng), +8):
                     self.endurance -= 1
             elif self.age < 66:
-                if test(roll(2), +9):
+                if test(roll(2, rng=self.rng), +9):
                     self.strength -= 1
-                if test(roll(2), +8):
+                if test(roll(2, rng=self.rng), +8):
                     self.dexterity -= 1
-                if test(roll(2), +9):
+                if test(roll(2, rng=self.rng), +9):
                     self.endurance -= 1
             else:
-                if test(roll(2), +9):
+                if test(roll(2, rng=self.rng), +9):
                     self.strength -= 2
-                if test(roll(2), +9):
+                if test(roll(2, rng=self.rng), +9):
                     self.dexterity -= 2
-                if test(roll(2), +9):
+                if test(roll(2, rng=self.rng), +9):
                     self.endurance -= 2
-                if test(roll(2), +9):
+                if test(roll(2, rng=self.rng), +9):
                     self.intelligence -= 1
         self.age += years
 
@@ -441,7 +442,11 @@ class Character(object):
 
     @property
     def actual_terms(self):
-        return "{}{}".format(self.terms, "½"if self.half_terms else "")
+        return "{}{}".format(self.terms, "½" if self.half_terms else "")
+
+    @property
+    def actual_terms_html(self):
+        return "{}{}".format(self.terms, "&frac12;" if self.half_terms else "")
 
     @property
     def name(self):
@@ -450,6 +455,52 @@ class Character(object):
         elif self.social == 12:
             return "{} von {}".format(*self._name.split(" "))
         return self._name
+
+    def html(self):
+        if not self.alive:
+            return "<strong>{profession} {rank} {name}</strong> DEAD after {terms} Terms".format(
+                profession=self.profession, rank=self.rank, name=self.name, terms=self.terms
+            )
+        template = ("<strong>{profession} {rank} {name}</strong> U{str}{dex}{end}{int}{edu}{soc}, Age {age}<br>"
+                    "{terms} Terms, {balance} Cr (+{pension} Cr/month)<br>"
+                    "{skills}<br>"
+                    "{equipment}")
+
+        skills = ", ".join("{}-{}".format(skill, value) for skill, value in self.skills.items())
+        equipment = ", ".join(self.equipment)
+        return template.format(
+            profession=self.profession, rank=self.rank, name=self.name, str=hex(self.strength)[2:].upper(),
+            dex=hex(self.dexterity)[2:].upper(), end=hex(self.endurance)[2:].upper(),
+            int=hex(self.intelligence)[2:].upper(), edu=hex(self.education)[2:].upper(),
+            soc=hex(self.social)[2:].upper(), age=self.age, terms=self.actual_terms_html, balance=self.balance,
+            pension=self.pension, skills=skills, equipment=equipment,
+        )
+
+    def __json__(self):
+        if self.alive:
+            return {
+                "profession": self.profession,
+                "rank": self.rank,
+                "name": self.name,
+                "strength": self.strength,
+                "dexterity": self.dexterity,
+                "endurance": self.endurance,
+                "intelligence": self.intelligence,
+                "education": self.education,
+                "social": self.social,
+                "age": self.age,
+                "terms": self.actual_terms,
+                "money": self.balance,
+                "pension": self.pension,
+                "skills": dict(self.skills),
+                "equipment": self.equipment
+            }
+        return {
+            "profession": self.profession,
+            "rank": self.rank,
+            "name": self.name,
+            "deceased": ""
+        }
 
     def __str__(self):
         if not self.alive:
