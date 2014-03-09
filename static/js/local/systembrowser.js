@@ -188,6 +188,7 @@ function num_earths(size) {
 
 function unselect() {
     routing = false;
+    active_route = undefined;
     $("#planetname").text("No System Selected");
     $('#planetname').css("color", "inherit");
     var sector_info = "Click a star to select that system.<br><br>";
