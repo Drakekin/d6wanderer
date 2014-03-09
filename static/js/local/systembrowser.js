@@ -187,6 +187,7 @@ function num_earths(size) {
 }
 
 function unselect() {
+    routing = false;
     $("#planetname").text("No System Selected");
     $('#planetname').css("color", "inherit");
     var sector_info = "Click a star to select that system.<br><br>";
@@ -207,17 +208,48 @@ function unselect() {
     dirty = true;
 }
 
+function route() {
+    routing = true;
+    active_route = undefined;
+    $("#routelabel").text("Click a second system.")
+}
+
+function print_system_name(system) {
+    return "<span style='color: " + empires[stars[system].empire].colour + ";'>" + system + "</span>";
+}
+
 function click_handler(event) {
     var ratio = canvas_size / 600;
     var x = event.offsetX / ratio,
         y = event.offsetY / ratio,
-        system = cell_under(x, y, treemap);
+        system = cell_under(x, y, treemap), description;
     if (system) {
+        if (routing) {
+            var path = find_path(selected, system),
+                route = path[0],
+                weeks = path[1],
+                dist  = path[2];
+            description = "The route from " + print_system_name(selected.name) + " to " + print_system_name(system.name) + " would take " + weeks;
+            description += " week" + (weeks == 1 ? "" : "s") + " and cover " + round(dist, 2) + " parsecs, leaving from ";
+            first = true;
+            active_route = route;
+            for (var dest in route) {
+                if (parseInt(dest) + 1 == route.length) description += " and " + print_system_name(route[dest]);
+                else description += first ? print_system_name(route[dest]) + " and stopping at " : print_system_name(route[dest]) + ", ";
+                first = false;
+            }
+            description += ". <a href='javascript:route()'>Calculate route to another system.</a>";
+            $("#routelabel").html(description);
+            console.log(selected, system, path);
+            routing = false;
+            return;
+        }
+        active_route = undefined;
         selected = system;
         var first;
         $("#planetname").text(system.name + " (" + system.empire + ")");
         $('#planetname').css("color", empires[system.empire].colour);
-        var description = "<a href='javascript:unselect()'>Back to sector view</a><br><br>";
+        description = "<a href='javascript:unselect()'>Back to sector view</a><br><br>";
         if (system.name == empires[system.empire].seat)
             description += "<strong>Seat of the " + system.empire + "</strong><br>";
         description += "Class " + system.class + ", ";
@@ -231,7 +263,7 @@ function click_handler(event) {
             for (var r in system.routes) {
                 r = system.routes[r];
                 description += first ? " " : ", ";
-                description += "<span style='color: " + empires[stars[r].empire].colour + ";'>" + r + "</span>";
+                description += print_system_name(r);
                 description += " (" + Math.ceil(distance(system.location, stars[r].location)) + " parsec)";
                 first = false;
             }
@@ -248,6 +280,7 @@ function click_handler(event) {
             }
             description += "<br>";
         }
+        description += "<span id='routelabel'><a href='javascript:route()'>Calculate route to another system.</a></span><br>";
         if (system.gas_giants)
             description += system.gas_giants + " gas giant" + (system.gas_giants == 1 ? "" : "s") + "<br>";
         if (system.planets) {
@@ -396,6 +429,25 @@ function draw_map() {
         }
     }
     ctx.stroke();
+
+    if (active_route) {
+        var last = undefined;
+        ctx.beginPath();
+        for (var place in active_route) {
+            place = active_route[place];
+            if (last) {
+                ctx.moveTo(stars[last].x, stars[last].y);
+                ctx.lineTo(stars[place].x, stars[place].y);
+            }
+            last = place;
+        }
+        ctx.lineWidth = 2;
+        ctx.setLineDash([4, 4]);
+        ctx.lineDashOffset = 8 - (((+new Date) / 50) % 8);
+        ctx.strokeStyle = "orange";
+        ctx.stroke();
+    }
+
     ctx.setLineDash([]);
     for (star in stars) {
         star = stars[star];
@@ -410,7 +462,6 @@ function draw_map() {
         ctx.fillStyle = star_colours[star.class.charAt(0)];
         ctx.fillRect(star.x - s2, star.y - s2, s, s);
     }
-
     ctx.restore();
 }
 
@@ -420,7 +471,7 @@ var stars = {},
     ctx = sector.getContext("2d"),
     voronoi = new Voronoi(),
     diagram, treemap, selected,
-    stats, dirty = false;
+    stats, dirty = false, routing = true, active_route = undefined;
 
 if (!ctx.setLineDash) {
     ctx.setLineDash = function () {}
@@ -474,3 +525,68 @@ $.ajax({
         unselect();
     }
 });
+
+function in_array(array, value) {
+    for (var val in array) {
+        if (array[val] == value) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function find_path(start, end) {
+    var closed_set = [],
+        open_set = [start],
+        came_from = {},
+        g_score = {},
+        f_score = {};
+
+    g_score[start.name] = 0;
+    f_score[start.name] = distance(start.location, end.location);
+
+    while (open_set.length) {
+        open_set.sort(function (a, b) {
+            return f_score[a.name] > f_score[b.name] ? 1 : -1;
+        });
+        var current = open_set.shift();
+        if (current == end) {
+            return reconstruct_goal(came_from, end.name);
+        }
+
+        closed_set.push(current);
+
+        for (var neighbour in current.routes) {
+            neighbour = stars[current.routes[neighbour]];
+            if (in_array(closed_set, neighbour)) continue;
+
+            var tentative_g_score = g_score[current.name] + distance(current.location, neighbour.location);
+            if (!in_array(open_set, neighbour) || tentative_g_score < g_score[neighbour.name]) {
+                came_from[neighbour.name] = current.name;
+                g_score[neighbour.name] = tentative_g_score;
+                f_score = tentative_g_score + distance(neighbour.location, end.location);
+                if (!in_array(open_set, neighbour)) open_set.push(neighbour);
+            }
+        }
+    }
+    return undefined;
+}
+
+window.onresize = function () {
+    dirty = true;
+};
+
+function reconstruct_goal(came_from, goal) {
+    var length = 0,
+        jumps = 0,
+        route = [goal];
+
+    while (came_from[goal]) {
+        route.unshift(came_from[goal]);
+        jumps += 1;
+        length += distance(stars[came_from[goal]].location, stars[goal].location);
+        goal = came_from[goal];
+    }
+
+    return [route, jumps, length];
+}

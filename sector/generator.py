@@ -119,7 +119,7 @@ def generate_empires(rng, stars):
     empires = []
     rng.shuffle(seed_planets)
 
-    for _ in range(rng.randint(3 if len(seed_planets) > 3 else len(seed_planets), len(seed_planets))):
+    for _ in range(rng.randint(min(3, len(seed_planets)), min(10, len(seed_planets)))):
         seat = seed_planets.pop()
         empire = Empire(rng, seat.star)
         seat.name = "{}, Capital of the {}".format(seat.name, empire.name)
@@ -186,31 +186,3 @@ def generate_sector(gen_seed):
     analysis = analyse(stars.values(), empires)
 
     return stars.values(), empires, analysis
-
-
-if __name__ == "__main__":
-    stars, empires = generate_sector("Atik Navy Cruiser Gorobchev")
-
-    with open("../sector.json", "w") as sector:
-        dump(
-            {"stars": stars, "empires": empires}, sector, sort_keys=True,
-            indent=4, separators=(',', ': '), cls=ObjectJSONEncoder
-        )
-
-    print len(stars), "Stars"
-    print sum(1 for s in stars if not s.inhabited_bodies or not s.gas_giants), "Stars With Planets"
-    print sum(1 for s in stars if not s.inhabited_bodies), "Stars With Inhabited Planets"
-    print sum(len(s.inhabited_bodies) + s.gas_giants for s in stars), "Planets"
-    print sum(len(s.inhabited_bodies) for s in stars), "Inhabited Planets"
-    print len(empires), "Empires"
-    for empire in empires:
-        print "\t{} ({} stars, {} planets, {} inhabited)".format(
-            empire.name,
-            len(empire.stars),
-            sum(len(s.inhabited_bodies) + s.gas_giants for s in empire.stars),
-            sum(len(s.inhabited_bodies) for s in empire.stars),
-        )
-    print count_affiliated(stars), "independent systems"
-
-
-
