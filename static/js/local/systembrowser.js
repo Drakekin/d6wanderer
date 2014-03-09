@@ -220,7 +220,10 @@ function click_handler(event) {
         var description = "<a href='javascript:unselect()'>Back to sector view</a><br><br>";
         if (system.name == empires[system.empire].seat)
             description += "<strong>Seat of the " + system.empire + "</strong><br>";
-        description += "Class " + system.class + "<br>";
+        description += "Class " + system.class + ", ";
+        description += round(system.radius, 2) + "x size of the sun, ";
+        description += round(system.mass, 2) +"x mass of the sun, ";
+        description += round(system.luminosity, 2) + "x brightness of the sun.<br>";
         description += "Coordinates (" + system.location[0] + ", " + system.location[1] + ")<br>";
         if (system.routes) {
             description += "Subsidised routes to";
@@ -248,6 +251,7 @@ function click_handler(event) {
         if (system.gas_giants)
             description += system.gas_giants + " gas giant" + (system.gas_giants == 1 ? "" : "s") + "<br>";
         if (system.planets) {
+            description += "Population: <em>~" + addCommas(significant_figures(system.population, 3)) + "</em><br>";
             description += system.planets.length + " inhabited planet" + (system.planets.length == 1 ? "" : "s") + "<br>";
             for (var p in system.planets) {
                 var planet = system.planets[p];
@@ -395,7 +399,7 @@ function draw_map() {
     ctx.setLineDash([]);
     for (star in stars) {
         star = stars[star];
-        var s = star_sizes[star.class.charAt(0)],
+        var s = 5 * star.radius,
                 s2 = s / 2;
         if (star.name == empires[star.empire].seat) {
             ctx.fillStyle = empires[star.empire].colour;

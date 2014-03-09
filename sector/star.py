@@ -14,6 +14,14 @@ def halve(n, i=1.0):
         yield i
 
 
+def randfloat(rng, low, high):
+    return low + rng.random() * (high - low)
+
+
+def bound(bound, low, high):
+    return low + bound * (high - low)
+
+
 class Star(object):
     stellar_class_table = [
         ("O", .0000003),
@@ -24,13 +32,13 @@ class Star(object):
         ("K", .121),
     ]
     stellar_characteristic_table = {
-        "O": (16.0, 6.6, 30000.0),
-        "B": (9.0, 4.7, 15000.0),
-        "A": (1.75, 1.6, 15),
-        "F": (1.21, 1.275, 3.25),
-        "G": (0.92, 1.05, 1.05),
-        "K": (0.625, 0.83, 0.3),
-        "M": (0.25, 0.7, 0.08),
+        "O": ((16.0, 90.0), (6.60, 40.0), (30e3, 10e5)),
+        "B": ((2.10, 16.0), (1.80, 6.60), (25.0, 30e3)),
+        "A": ((1.40, 2.10), (1.40, 1.80), (5.00, 25.0)),
+        "F": ((1.01, 1.40), (1.15, 1.40), (1.50, 5.00)),
+        "G": ((0.80, 1.04), (0.96, 1.15), (0.60, 1.50)),
+        "K": ((0.45, 0.80), (0.70, 0.96), (0.08, 0.60)),
+        "M": ((0.08, 0.45), (0.15, 0.70), (0.01, 0.08)),
     }
 
     def __init__(self, rng, name, location):
@@ -38,13 +46,17 @@ class Star(object):
         self.name = name
         self.location = location
         stellar_class_value = self.rng.random()
-        stellar_class = "M"
+        stellar_class = "K"
         for s_class, s_chance in self.stellar_class_table:
             if stellar_class_value <= s_chance:
                 stellar_class = s_class
                 break
-        self.stellar_class = "{}{}".format(stellar_class, self.rng.randint(0, 9))
-        self.mass, self.radius, self.luminosity = self.stellar_characteristic_table[stellar_class]
+        class_division = self.rng.random()
+        self.stellar_class = "{}{}".format(stellar_class, int(class_division * 10))
+        mass_bound, radius_bound, luminosity_bound = self.stellar_characteristic_table[stellar_class]
+        self.mass = bound(class_division, *mass_bound)
+        self.radius = bound(class_division, *radius_bound)
+        self.luminosity = bound(class_division, *luminosity_bound)
         self.gas_giants = self.rng.randint(0, 5)
 
         self.inhabited_bodies = []
@@ -65,6 +77,10 @@ class Star(object):
                 b.add(route.empire.name if route.empire else "Independent")
         return list(b)
 
+    @property
+    def population(self):
+        return sum(p.population for p in self.inhabited_bodies)
+
     def __json__(self):
         return {
             "name": self.name,
@@ -75,6 +91,7 @@ class Star(object):
             "luminosity": self.luminosity,
             "gas_giants": self.gas_giants,
             "planets": self.inhabited_bodies,
+            "population": self.population,
             "empire": self.empire.name if self.empire else "Independent",
             "routes": [p.name for p in self.routes],
             "borders": self.borders

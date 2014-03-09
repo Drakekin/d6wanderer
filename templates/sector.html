@@ -9,11 +9,16 @@
 <body>
 <p id="seedinfo">The seed for this sector is <a href="/sector/{{ seed }}"><strong>{{ seed }}</strong></a>. <a href="/sector">Generate a new random sector.</a></p>
 <canvas id="sector" style="float: left;">
-    This tool requires a HTML5 compatable browser.
+    This tool requires a HTML5 compatible browser.
 </canvas>
 <div id="infopane" style="max-height: 600px; overflow-y: auto; padding-left: 10px; padding-right: 10px;">
     <h2 id="planetname" style="margin-top: 0">Loading sector {{ seed }}</h2>
-    <p id="planetinfo"></p>
+    <p id="planetinfo">
+        <noscript>
+            This display requires javascript to function. Sincere apologies to those who cannot run javascript.
+        </noscript>
+        If the map does not load, please check your network connection.
+    </p>
 </div>
 <script>
     var canvas_size = 600,
