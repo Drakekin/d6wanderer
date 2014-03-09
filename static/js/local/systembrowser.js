@@ -140,11 +140,58 @@ Object.size = function(obj) {
     return size;
 };
 
+function addCommas(nStr) {
+	nStr += '';
+	x = nStr.split('.');
+	x1 = x[0];
+	x2 = x.length > 1 ? '.' + x[1] : '';
+	var rgx = /(\d+)(\d{3})/;
+	while (rgx.test(x1)) {
+		x1 = x1.replace(rgx, '$1' + ',' + '$2');
+	}
+	return x1 + x2;
+}
+
+Math.logN = function(n, base) {
+    if (base) {
+        if (base == 2) return Math.log(n) / Math.LN2;
+        if (base == 10) return Math.log(n) / Math.LN10;
+        return Math.log(n) / Math.log(base);
+    }
+    return Math.log(n)
+};
+
+function round(n, fig) {
+    return Math.round(n * Math.pow(10, fig)) / Math.pow(10, fig);
+}
+
+function significant_figures(n, fig) {
+    var digits = Math.ceil(Math.logN(n, 10));
+    if (digits <= fig) return n;
+    return Math.floor(n / Math.pow(10, digits - fig)) * Math.pow(10, digits - fig);
+}
+
+function size_to_surface_area(size) {
+    size *= 800;
+    return 4 * Math.PI * size * size;
+}
+
+function size_to_gravity(size) {
+    size *= 800;
+    var mass = size * 9.38e20;
+    return mass / 5.98e24;
+}
+
+function num_earths(size) {
+    return round(size_to_surface_area(size)/510072000, 2);
+}
+
 function unselect() {
     $("#planetname").text("No System Selected");
     $('#planetname').css("color", "inherit");
     var sector_info = "Click a star to select that system.<br><br>";
     sector_info += "This sector contains " + stats.systems + " systems and " + stats.planets + " planets. ";
+    sector_info += "There are approximately <em>~" + addCommas(significant_figures(stats.population, 3)) + "</em> people in this sector. ";
     sector_info += "The average tech level in this sector is " + stats.avg_tech_level + " (" + tech_levels[stats.avg_tech_level] + "). ";
     sector_info += "There are " + Object.size(stats.empires) + " empires in this sector. ";
     sector_info += "There are also " + stats.independent_systems + " independent systems with " + stats.independent_planets + " planets.<br><br>";
@@ -152,10 +199,12 @@ function unselect() {
         sector_info += "<strong style='color: " + empires[empire].colour + ";'>" + empire + "</strong><br>";
         empire = stats.empires[empire];
         sector_info += empire.systems + " systems, " + empire.planets + " planets.<br>";
+        sector_info += "Population: <em>~" + addCommas(significant_figures(empire.population, 3)) + "</em>.<br>";
         sector_info += "Average tech level: " + empire.avg_tech_level + " (" + tech_levels[empire.avg_tech_level] + ").<br><br>";
     }
     $('#planetinfo').html(sector_info);
     selected = undefined;
+    dirty = true;
 }
 
 function click_handler(event) {
@@ -179,8 +228,19 @@ function click_handler(event) {
             for (var r in system.routes) {
                 r = system.routes[r];
                 description += first ? " " : ", ";
-                description += r;
+                description += "<span style='color: " + empires[stars[r].empire].colour + ";'>" + r + "</span>";
                 description += " (" + Math.ceil(distance(system.location, stars[r].location)) + " parsec)";
+                first = false;
+            }
+            description += "<br>";
+        }
+        if (system.borders.length) {
+            description += "This system shares a border with ";
+            first = true;
+            for (var b in system.borders) {
+                b = system.borders[b];
+                description += first ? "" : " and ";
+                description += "<strong style='color: " + empires[b].colour + ";'>" + b + "</strong> space";
                 first = false;
             }
             description += "<br>";
@@ -204,7 +264,13 @@ function click_handler(event) {
                     description += "Standard";
                 }
                 description += " World)<br><em>Size " + planet.size;
-                description += ", Population ~" + planet.population + "<br>";
+                if (planet.size) {
+                    description += " (" + addCommas(significant_figures(size_to_surface_area(planet.size), 3)) + "km<sup>2</sup>, ";
+                    description += num_earths(planet.size) + "x Earth, " + round(size_to_gravity(planet.size), 2) + "G surface gravity)";
+                } else {
+                    description += " (assorted asteroids and space stations)";
+                }
+                description += ", Population ~" + addCommas(planet.population) + "<br>";
                 description += (planet.hydrographics * 10) + "% ocean coverage, ";
                 description += atmosphere_types[planet.atmosphere] + " atmosphere<br>";
                 description += planet.government + ", Law Level: " + planet.law_level;
@@ -225,6 +291,8 @@ function click_handler(event) {
 }
 
 function draw_map() {
+    if (!dirty && !selected) return;
+    dirty = false;
     var seedinfo = $("#seedinfo");
     var top_missing = seedinfo.height();
     top_missing += parseInt(seedinfo.css("padding-top"), 10) + parseInt(seedinfo.css("padding-bottom"), 10); //Total Padding Width
@@ -245,15 +313,17 @@ function draw_map() {
     var ratio = canvas_size / 600;
     ctx.scale(ratio, ratio);
 
-    for (var site in diagram.cells) {
-        var cell = diagram.cells[site];
-        var halfedges = cell.halfedges,
-                nHalfedges = halfedges.length;
+    var site, cell, halfedges, nHalfedges, iHalfedge, v;
+
+    for (site in diagram.cells) {
+        cell = diagram.cells[site];
+        halfedges = cell.halfedges;
+        nHalfedges = halfedges.length;
         if (nHalfedges > 2) {
-            var v = halfedges[0].getStartpoint();
+            v = halfedges[0].getStartpoint();
             ctx.beginPath();
             ctx.moveTo(v.x, v.y);
-            for (var iHalfedge = 0; iHalfedge < nHalfedges; iHalfedge++) {
+            for (iHalfedge = 0; iHalfedge < nHalfedges; iHalfedge++) {
                 v = halfedges[iHalfedge].getEndpoint();
                 ctx.lineTo(v.x, v.y);
             }
@@ -265,26 +335,44 @@ function draw_map() {
         }
     }
 
+    ctx.beginPath();
+    for (site in diagram.cells) {
+        for (var halfedge in diagram.cells[site].halfedges) {
+            var edge = diagram.cells[site].halfedges[halfedge].edge;
+            if (edge.lSite && edge.rSite && edge.lSite.empire != edge.rSite.empire && edge.lSite.empire != "Independent" && edge.rSite.empire != "Independent") {
+                ctx.moveTo(edge.va.x, edge.va.y);
+                ctx.lineTo(edge.vb.x, edge.vb.y);
+            }
+        }
+    }
+    ctx.save();
+    ctx.setLineDash([10,5]);
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = "black";
+    ctx.stroke();
+    ctx.restore();
+
     if (selected) {
-        for (var site in diagram.cells) {
-            var cell = diagram.cells[site];
+        for (site in diagram.cells) {
+            cell = diagram.cells[site];
             if (cell.site == selected) {
-                var halfedges = cell.halfedges,
-                        nHalfedges = halfedges.length;
+                halfedges = cell.halfedges;
+                nHalfedges = halfedges.length;
                 if (nHalfedges > 2) {
-                    var v = halfedges[0].getStartpoint();
+                    v = halfedges[0].getStartpoint();
+                    ctx.save();
                     ctx.beginPath();
                     ctx.moveTo(v.x, v.y);
-                    for (var iHalfedge = 0; iHalfedge < nHalfedges; iHalfedge++) {
+                    for (iHalfedge = 0; iHalfedge < nHalfedges; iHalfedge++) {
                         v = halfedges[iHalfedge].getEndpoint();
                         ctx.lineTo(v.x, v.y);
                     }
-                    ctx.setLineDash([2, 4]);
-                    ctx.lineDashOffset = ((+new Date) / 100) % 6;
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([4, 4]);
+                    ctx.lineDashOffset = ((+new Date) / 50) % 8;
                     ctx.strokeStyle = "white";
                     ctx.stroke();
-                    ctx.setLineDash([]);
-                    ctx.lineDashOffset = 0;
+                    ctx.restore();
                 }
                 break;
             }
@@ -328,7 +416,7 @@ var stars = {},
     ctx = sector.getContext("2d"),
     voronoi = new Voronoi(),
     diagram, treemap, selected,
-    stats;
+    stats, dirty = false;
 
 if (!ctx.setLineDash) {
     ctx.setLineDash = function () {}
@@ -378,6 +466,7 @@ $.ajax({
         draw_loop();
 
         $("#sector").mousedown(click_handler);
+        dirty = true;
         unselect();
     }
 });

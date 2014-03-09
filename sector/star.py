@@ -57,6 +57,14 @@ class Star(object):
         self.routes = set()
         self.empire = None
 
+    @property
+    def borders(self):
+        b = set()
+        for route in self.routes:
+            if route.empire != self.empire:
+                b.add(route.empire.name if route.empire else "Independent")
+        return list(b)
+
     def __json__(self):
         return {
             "name": self.name,
@@ -68,7 +76,8 @@ class Star(object):
             "gas_giants": self.gas_giants,
             "planets": self.inhabited_bodies,
             "empire": self.empire.name if self.empire else "Independent",
-            "routes": [p.name for p in self.routes]
+            "routes": [p.name for p in self.routes],
+            "borders": self.borders
         }
 
     def __repr__(self):

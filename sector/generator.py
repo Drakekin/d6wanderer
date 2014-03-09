@@ -89,7 +89,7 @@ def connect_systems(rng, stars):
 
         routes.add(sorted_routes.pop())
 
-        for _ in range(rng.randint(min(1, len(sorted_routes)), max(min(1, len(sorted_routes)), len(sorted_routes) / 2))):
+        for _ in range(rng.randint(min(1, len(sorted_routes)), max(min(1, len(sorted_routes)), len(sorted_routes) / 3))):
             routes.add(sorted_routes.pop())
         visited_systems = systems_visited(routes)
 
