@@ -1,4 +1,5 @@
-from sector.planet import Planet
+from sector.planet import Planet, AsteroidField, GasGiant
+from math import sqrt
 
 
 def bucket(l, v):
@@ -24,12 +25,9 @@ def bound(bound, low, high):
 
 class Star(object):
     stellar_class_table = [
-        ("O", .0000003),
-        ("B", .0013),
         ("A", .006),
         ("F", .03),
         ("G", .076),
-        ("K", .121),
     ]
     stellar_characteristic_table = {
         "O": ((16.0, 90.0), (6.60, 40.0), (30e3, 10e5)),
@@ -40,6 +38,7 @@ class Star(object):
         "K": ((0.45, 0.80), (0.70, 0.96), (0.08, 0.60)),
         "M": ((0.08, 0.45), (0.15, 0.70), (0.01, 0.08)),
     }
+    reference_habitable_zone = (0.5, 2.5)
 
     def __init__(self, rng, name, location):
         self.rng = rng
@@ -51,21 +50,43 @@ class Star(object):
             if stellar_class_value <= s_chance:
                 stellar_class = s_class
                 break
-        class_division = self.rng.random()
+        if stellar_class == "K":
+            class_division = 0.75 + 0.25 * self.rng.random()
+        else:
+            class_division = self.rng.random()
         self.stellar_class = "{}{}".format(stellar_class, int(class_division * 10))
         mass_bound, radius_bound, luminosity_bound = self.stellar_characteristic_table[stellar_class]
         self.mass = bound(class_division, *mass_bound)
         self.radius = bound(class_division, *radius_bound)
         self.luminosity = bound(class_division, *luminosity_bound)
-        self.gas_giants = self.rng.randint(0, 5)
+        hab_lower_bound, hab_upper_bound = self.reference_habitable_zone
+        self.habitable_zone = hab_lower_bound * sqrt(self.luminosity), hab_upper_bound * sqrt(self.luminosity)
+        hab_lower_bound, hab_upper_bound = self.habitable_zone
 
-        self.inhabited_bodies = []
+        self.satellites = []
 
-        chance = list(halve(10))
-        planets = bucket(chance, rng.random()) + 1
+        if rng.random() > .5:
+            self.satellites.append(AsteroidField(self, hab_lower_bound / 5))
 
-        for _ in range(planets):
-            self.inhabited_bodies.append(Planet(self))
+        current_radius = hab_lower_bound * 5 / 4
+        current_step = (hab_upper_bound - hab_lower_bound) / 3
+
+        for _ in range(rng.choice([0, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3])):
+            current_radius += current_step
+            self.satellites.append(Planet(self, current_radius))
+
+        current_step *= 4
+
+        for _ in range(rng.choice([0, 0, 1, 1, 1, 2, 2, 2, 2, 2, 2, 3, 3, 3])):
+            current_radius += current_step
+            self.satellites.append(GasGiant(self, current_radius))
+
+        current_step *= 1.5
+
+        for _ in range(rng.choice([0, 0, 0, 0, 0, 0, 1, 1, 1, 2, 2])):
+            current_radius += current_step
+            self.satellites.append(Planet(self, current_radius))
+
         self.routes = set()
         self.empire = None
 
@@ -79,7 +100,7 @@ class Star(object):
 
     @property
     def population(self):
-        return sum(p.population for p in self.inhabited_bodies)
+        return sum(p.population for p in self.satellites)
 
     def __json__(self):
         return {
@@ -89,8 +110,7 @@ class Star(object):
             "mass": self.mass,
             "radius": self.radius,
             "luminosity": self.luminosity,
-            "gas_giants": self.gas_giants,
-            "planets": self.inhabited_bodies,
+            "planets": self.satellites,
             "population": self.population,
             "empire": self.empire.name if self.empire else "Independent",
             "routes": [p.name for p in self.routes],
@@ -102,14 +122,14 @@ class Star(object):
 
     def __str__(self):
         planets = ""
-        if len(self.inhabited_bodies) != 1:
+        if len(self.satellites) != 1:
             planets += "s"
-        if self.inhabited_bodies:
-            planets += " (" + ", ".join(" ".join(b.classification) for b in self.inhabited_bodies) + ")"
+        if self.satellites:
+            planets += " (" + ", ".join(" ".join(b.classification) for b in self.satellites) + ")"
         return (
             "{} (Class {}){}\n"
-            "{} planet{} plus {} gas giant{}"
+            "{} planet{}"
         ).format(
             self.name, self.stellar_class, " part of the {}".format(self.empire.name) if self.empire else "",
-            len(self.inhabited_bodies), planets, self.gas_giants, "" if self.gas_giants == 1 else "s"
+            len(self.satellites), planets
         )

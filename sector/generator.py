@@ -102,7 +102,7 @@ def generate_empires(rng, stars):
     planets = []
 
     for system in stars.itervalues():
-        planets += system.inhabited_bodies
+        planets += system.satellites
 
     important_planets = sorted((p for p in planets if is_important_planet(p)),
                                key=lambda p: (p.tech_level, p.population))
@@ -144,13 +144,13 @@ def generate_empires(rng, stars):
 
 def analyse(stars, empires):
     independent_stars = [s for s in stars if s.empire is None]
-    stats = {"population": sum(sum(p.population for p in s.inhabited_bodies) for s in stars), "systems": len(stars),
-             "planets": sum(len(s.inhabited_bodies) for s in stars), "independent_systems": len(independent_stars),
-             "independent_planets": sum(len(s.inhabited_bodies) for s in independent_stars)}
+    stats = {"population": sum(sum(p.population for p in s.satellites) for s in stars), "systems": len(stars),
+             "planets": sum(len(s.satellites) for s in stars), "independent_systems": len(independent_stars),
+             "independent_planets": sum(len(s.satellites) for s in independent_stars)}
 
     tech_levels = []
     for star in stars:
-        tech_levels += [p.tech_level for p in star.inhabited_bodies]
+        tech_levels += [p.tech_level for p in star.satellites]
     tech_levels = sorted(tech_levels)
     if len(tech_levels) % 2:
         stats["avg_tech_level"] = (tech_levels[len(tech_levels)/2] + tech_levels[len(tech_levels)/2 - 1])/2
@@ -159,12 +159,12 @@ def analyse(stars, empires):
 
     empire_stats = {}
     for empire in empires:
-        e_stats = {"population": sum(sum(p.population for p in s.inhabited_bodies) for s in empire.stars),
-                   "systems": len(empire.stars), "planets": sum(len(s.inhabited_bodies) for s in empire.stars)}
+        e_stats = {"population": sum(sum(p.population for p in s.satellites) for s in empire.stars),
+                   "systems": len(empire.stars), "planets": sum(len(s.satellites) for s in empire.stars)}
 
         tech_levels = []
         for star in empire.stars:
-            tech_levels += [p.tech_level for p in star.inhabited_bodies]
+            tech_levels += [p.tech_level for p in star.satellites]
         tech_levels = sorted(tech_levels)
         if len(tech_levels) % 2:
             e_stats["avg_tech_level"] = (tech_levels[len(tech_levels)/2] + tech_levels[len(tech_levels)/2 - 1])/2

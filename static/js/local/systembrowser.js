@@ -58,7 +58,7 @@ var star_colours = {
     "Corrosive",
     "Insidious"
 ], tech_levels = [
-    "Frontier",
+    "N/A",
     "Basic Infrastructure",
     "Basic Industry",
     "Basic Electronics",
@@ -258,6 +258,8 @@ function click_handler(event) {
         description += round(system.mass, 2) +"x mass of the sun, ";
         description += round(system.luminosity, 2) + "x brightness of the sun.<br>";
         description += "Coordinates (" + system.location[0] + ", " + system.location[1] + ")<br>";
+        if (system.population) description += "Population: <em>~" + addCommas(significant_figures(system.population, 3)) + "</em><br>";
+        description += system.planets.length + " planet" + (system.planets.length == 1 ? "" : "s") + "<br>";
         if (system.routes) {
             description += "Subsidised routes to";
             first = true;
@@ -282,11 +284,7 @@ function click_handler(event) {
             description += "<br>";
         }
         description += "<span id='routelabel'><a href='javascript:route()'>Calculate route to another system.</a></span><br>";
-        if (system.gas_giants)
-            description += system.gas_giants + " gas giant" + (system.gas_giants == 1 ? "" : "s") + "<br>";
         if (system.planets) {
-            description += "Population: <em>~" + addCommas(significant_figures(system.population, 3)) + "</em><br>";
-            description += system.planets.length + " inhabited planet" + (system.planets.length == 1 ? "" : "s") + "<br>";
             for (var p in system.planets) {
                 var planet = system.planets[p];
                 description += "<br>" + planet.name + " (";
@@ -304,21 +302,34 @@ function click_handler(event) {
                 description += " World)<br><em>Size " + planet.size;
                 if (planet.size) {
                     description += " (" + addCommas(significant_figures(size_to_surface_area(planet.size), 3)) + "km<sup>2</sup>, ";
-                    description += num_earths(planet.size) + "x Earth, " + round(size_to_gravity(planet.size), 2) + "G surface gravity)";
+                    description += num_earths(planet.size) + "x Earth, " + round(size_to_gravity(planet.size), 2) + "G surface gravity)<br>";
                 } else {
-                    description += " (assorted asteroids and space stations)";
+                    description += " (assorted asteroids and space stations)<br>";
                 }
-                description += ", Population ~" + addCommas(planet.population) + "<br>";
+                description += "Average orbital radius: " + round(planet.orbit, 2) + "AU, orbital period: ";
+                if (planet.year > 365) {
+                    description += round(planet.year/365, 2) + " years.<br>";
+                } else {
+                    description += round(planet.year, 2) + " days.<br>";
+                }
+                description += "Apparent luminosity of star: " + round(planet.apparent_luminosity, 4);
+                description += " (as bright as " + planet.magnitude + ")<br>";
                 description += (planet.hydrographics * 10) + "% ocean coverage, ";
-                description += atmosphere_types[planet.atmosphere] + " atmosphere<br>";
-                description += planet.government + ", Law Level: " + planet.law_level;
-                description += " (" + law_levels[planet.law_level] + ")<br>";
-                description += "Tech Level:" + planet.tech_level + " (" + tech_levels[planet.tech_level] + "), ";
-                description += "Starport: " + planet.starport;
-                if (planet.scout_base) description += ", Scout base";
-                if (planet.naval_base) description += ", Naval base";
+                description += atmosphere_types[planet.atmosphere] + " atmosphere";
+                if (planet.moons) description += ", " + planet.moons + " moon" + (planet.moons == 1 ? "" : "s");
                 description += "<br>";
-
+                if (planet.population) {
+                    description += "Population ~" + addCommas(planet.population) + "<br>";
+                    description += planet.government + ", Law Level: " + planet.law_level;
+                    description += " (" + law_levels[planet.law_level] + ")<br>";
+                    description += "Tech Level:" + planet.tech_level + " (" + tech_levels[planet.tech_level] + "), ";
+                    description += "Starport: " + planet.starport;
+                    if (planet.scout_base) description += ", Scout base";
+                    if (planet.naval_base) description += ", Naval base";
+                    description += "<br>";
+                } else {
+                    description += "Uninhabited<br>";
+                }
                 description += "</em>";
             }
         }
