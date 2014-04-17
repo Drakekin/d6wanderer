@@ -1,6 +1,7 @@
 # coding=utf-8
-from flask import Flask, Response, render_template
+from flask import Flask, Response, render_template, redirect, url_for
 from json import dumps
+import requests
 from character.generator import Character, DRAFT
 from util.custom_json_encoder import ObjectJSONEncoder
 from sector.generator import generate_sector
@@ -20,6 +21,14 @@ def json_sector(seed=None):
         status=200,
         mimetype="application/json"
     )
+
+
+@app.route("/character/random")
+def random_character():
+    person = requests.get("http://api.randomuser.me/").json()
+    first_name = person["results"][0]["user"]["name"]["first"]
+    last_name = person["results"][0]["user"]["name"]["last"]
+    return redirect(url_for("show_character", name="{} {}".format(first_name, last_name)))
 
 
 @app.route("/json/character.json")
